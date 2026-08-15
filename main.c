@@ -16,10 +16,20 @@ int main() {
     char line[MAX_LINE_CHARS];
     // holds separated words based on whitespace
     char* line_words[MAX_LINE_WORDS + 1];
+    // True when stdin is connected to a terminal
+    int interactive = isatty(STDIN_FILENO);
 
     // Loop until user hits Ctrl-D (end of input)
     // or some other input error occurs
-    while( fgets(line, MAX_LINE_CHARS, stdin) ) {
+    while (1) {
+        if (interactive) {
+            printf("lobo> ");
+            fflush(stdout);
+        }
+        if (fgets(line, MAX_LINE_CHARS, stdin) == NULL) {
+            break;
+        }
+
         int num_words = split_cmd_line(line, line_words);
 
         for (int i=0; i < num_words; i++) {
