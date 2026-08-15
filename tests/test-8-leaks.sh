@@ -36,7 +36,7 @@ INUSE=`cat $OUT | grep "in use at exit" | tr -s ' ' | cut --delimiter=' ' -f6`
 echo "Valgrind reported:" >> $LOG
 cat $OUT >> $LOG
 
-if [ "$BYTES" == 0 ] || [ "$INUSE" == 0 ]; then
+if [ "$BYTES" == 0 ]; then
     echo "PASS $TEST"
 else
     echo "FAIL $TEST"
