@@ -23,21 +23,45 @@ fi
 #
 # Test with LOBO
 #
-valgrind --leak-check=summary $LOBO >$OUT 2>&1 << 'EOF'
+valgrind --leak-check=summary --track-fds=yes $LOBO >$OUT 2>&1 << 'EOF'
 whoami
 EOF
 
 #
 # Analyze results
 #
-BYTES=`cat $OUT | grep "definitely lost" | tr -s ' ' | cut --delimiter=' ' -f4`
-INUSE=`cat $OUT | grep "in use at exit" | tr -s ' ' | cut --delimiter=' ' -f6`
+BYTES=$(grep "definitely lost" "$OUT" \
+    | tr -s ' ' \
+    | cut --delimiter=' ' -f4 \
+    | tr -d ',')
+
+# Valgrind reports something like:
+# FILE DESCRIPTORS: 3 open (3 std) at exit.
+FDLINE=$(grep "FILE DESCRIPTORS:" "$OUT" | tail -1)
+
+OPEN_FDS=$(echo "$FDLINE" \
+    | sed -E 's/.*FILE DESCRIPTORS: ([0-9]+) open.*/\1/')
+
+STD_FDS=$(echo "$FDLINE" \
+    | sed -E 's/.*\(([0-9]+) std\).*/\1/')
+
 
 echo "Valgrind reported:" >> $LOG
 cat $OUT >> $LOG
 
-if [ "$BYTES" == 0 ]; then
+if [ -z "$BYTES" ] || [ -z "$OPEN_FDS" ] || [ -z "$STD_FDS" ]; then
+    echo "FAIL $TEST"
+    echo "Unable to parse Valgrind results" >> $LOG
+elif [ "$BYTES" -eq 0 ] && [ "$OPEN_FDS" -eq "$STD_FDS" ]; then
     echo "PASS $TEST"
 else
     echo "FAIL $TEST"
+
+    if [ "$BYTES" -ne 0 ]; then
+        echo "Memory leak: $BYTES bytes definitely lost" >> $LOG
+    fi
+
+    if [ "$OPEN_FDS" -ne "$STD_FDS" ]; then
+        echo "File descriptor leak: $OPEN_FDS open, $STD_FDS standard" >> $LOG
+    fi
 fi
